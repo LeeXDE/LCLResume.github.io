@@ -1459,8 +1459,16 @@ a:hover {
   text-align: left;
 }
 
-.site-footer-reply-title {
+.site-footer-reply-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.65rem;
   margin: 0 0 0.45rem;
+}
+
+.site-footer-reply-title {
+  margin: 0;
   font-family: var(--font-serif);
   font-size: clamp(1rem, 2.5vw, 1.28rem);
   font-weight: 600;
@@ -1483,6 +1491,99 @@ a:hover {
 
 .site-footer-reply-body p:first-child {
   margin-top: 0;
+}
+
+.site-footer-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: clamp(0.85rem, 1.85vw, 0.95rem);
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.2s var(--ease), opacity 0.2s var(--ease);
+}
+
+.site-footer-download-btn:hover {
+  color: #6ee7b7;
+}
+
+.site-footer-download-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.site-footer-download-icon {
+  flex-shrink: 0;
+  display: block;
+}
+
+.resume-download-toast {
+  position: fixed;
+  inset: auto 50% clamp(1.25rem, 4vw, 2rem) auto;
+  z-index: 200;
+  width: min(20rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 1rem 1.1rem;
+  box-sizing: border-box;
+  transform: translateX(50%) translateY(12px);
+  background: rgba(30, 41, 59, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+}
+
+.resume-download-toast.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(50%) translateY(0);
+}
+
+.resume-download-toast[hidden] {
+  display: block;
+}
+
+.resume-download-toast-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-on-dark);
+}
+
+.resume-download-toast-text {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.resume-download-toast-close {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  border-radius: var(--radius);
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.resume-download-toast-close:hover {
+  background: rgba(16, 185, 129, 0.28);
+  border-color: rgba(16, 185, 129, 0.65);
 }
 
 .site-footer-copy {

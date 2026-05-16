@@ -143,3 +143,69 @@ if (projectsReveal) {
 }
 
 scheduleSyncWorksPrototypeHeight();
+
+const resumeDownloadBtn = document.getElementById("resume-download-btn");
+const resumeDownloadToast = document.getElementById("resume-download-toast");
+const resumeDownloadToastText = document.getElementById("resume-download-toast-text");
+const resumeDownloadToastClose = document.getElementById("resume-download-toast-close");
+
+let resumeToastTimer;
+
+function showResumeDownloadToast(message) {
+  if (!resumeDownloadToast || !resumeDownloadToastText) return;
+  resumeDownloadToastText.textContent = message;
+  resumeDownloadToast.hidden = false;
+  resumeDownloadToast.classList.add("is-visible");
+  window.clearTimeout(resumeToastTimer);
+  resumeToastTimer = window.setTimeout(hideResumeDownloadToast, 5000);
+}
+
+function hideResumeDownloadToast() {
+  if (!resumeDownloadToast) return;
+  resumeDownloadToast.classList.remove("is-visible");
+  window.clearTimeout(resumeToastTimer);
+  window.setTimeout(() => {
+    if (!resumeDownloadToast.classList.contains("is-visible")) {
+      resumeDownloadToast.hidden = true;
+    }
+  }, 280);
+}
+
+function triggerResumeDownload(src, filename) {
+  const link = document.createElement("a");
+  link.href = src;
+  link.download = filename;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+if (resumeDownloadBtn) {
+  resumeDownloadBtn.addEventListener("click", async () => {
+    const src = resumeDownloadBtn.dataset.src || "public/resume.pdf";
+    const filename = resumeDownloadBtn.dataset.filename || "李敬媚-简历.pdf";
+
+    try {
+      const response = await fetch(src);
+      if (!response.ok) throw new Error("fetch failed");
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      showResumeDownloadToast("简历已开始下载，请查看浏览器下载记录。当前页面不会跳转。");
+    } catch {
+      triggerResumeDownload(src, filename);
+      showResumeDownloadToast("已尝试开始下载。若未出现文件，请检查浏览器下载设置。");
+    }
+  });
+}
+
+resumeDownloadToastClose?.addEventListener("click", hideResumeDownloadToast);
