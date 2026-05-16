@@ -1370,6 +1370,10 @@ a:hover {
 }
 
 .prototype-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
   margin: 0;
   padding: 0 0.2rem;
   font-size: 0.64rem;
@@ -1377,6 +1381,12 @@ a:hover {
   color: var(--text-muted);
   text-align: center;
   flex-shrink: 0;
+}
+
+.prototype-caption-line {
+  display: block;
+  width: 100%;
+  text-align: center;
 }
 
 .prototype-caption a {
