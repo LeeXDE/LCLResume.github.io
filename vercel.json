@@ -1,5 +1,0 @@
-﻿{
-  "installCommand": "cd personal-resume && npm install",
-  "buildCommand": "cd personal-resume && npm run build",
-  "outputDirectory": "personal-resume/dist"
-}
