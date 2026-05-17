@@ -1,3 +1,16 @@
+if ("scrollRestoration" in history) {
+  history.scrollRestoration = "manual";
+}
+
+function scrollPageToTop() {
+  window.scrollTo(0, 0);
+}
+
+window.addEventListener("load", scrollPageToTop);
+window.addEventListener("pageshow", (e) => {
+  if (!e.persisted) scrollPageToTop();
+});
+
 const yearEl = document.getElementById("year");
 
 if (yearEl) {

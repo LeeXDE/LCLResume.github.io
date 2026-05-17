@@ -35,23 +35,13 @@ if (agentRoot) {
   const input = agentRoot.querySelector(".site-agent-input");
   const messagesEl = agentRoot.querySelector(".site-agent-messages");
   const statusEl = agentRoot.querySelector(".site-agent-status");
-  const STORAGE_KEY = "resume-agent-messages-v1";
   let messages = [];
   let busy = false;
 
   try {
-    const saved = sessionStorage.getItem(STORAGE_KEY);
-    if (saved) messages = JSON.parse(saved);
+    sessionStorage.removeItem("resume-agent-messages-v1");
   } catch {
-    messages = [];
-  }
-
-  function saveMessages() {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-20)));
-    } catch {
-      /* ignore */
-    }
+    /* ignore */
   }
 
   function setStatus(text) {
@@ -142,7 +132,6 @@ if (agentRoot) {
     input?.setAttribute("disabled", "true");
 
     messages.push({ role: "user", content });
-    saveMessages();
     renderMessages();
     setStatus("思考中…");
 
@@ -202,7 +191,6 @@ if (agentRoot) {
       });
     }
 
-    saveMessages();
     renderMessages();
     setStatus("");
     busy = false;
