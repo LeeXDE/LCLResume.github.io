@@ -1,6 +1,6 @@
 import { createServer } from "http";
-import { readFile, readFileSync, existsSync } from "fs";
-import { readFile as readFileAsync } from "fs/promises";
+import { readFileSync, existsSync } from "fs";
+import { readFile } from "fs/promises";
 import { join, extname } from "path";
 import { fileURLToPath } from "url";
 
@@ -28,7 +28,6 @@ function loadEnvFile(filePath) {
 loadEnvFile(join(root, ".env.local"));
 loadEnvFile(join(root, ".env"));
 
-const readFile = readFileAsync;
 let portNum = Number(process.env.PORT) || 5173;
 
 const mime = {
@@ -48,9 +47,28 @@ const mime = {
 const server = createServer(async (req, res) => {
   const urlPath = (req.url || "/").split("?")[0];
 
+  if (req.method === "GET" && urlPath === "/api/health") {
+    const { default: healthHandler } = await import("./api/health.js");
+    const mockReq = { method: "GET" };
+    const mockRes = {
+      statusCode: 200,
+      headers: {},
+      setHeader(k, v) {
+        this.headers[k] = v;
+      },
+      end(body) {
+        res.writeHead(this.statusCode, this.headers);
+        res.end(body);
+      },
+    };
+    await healthHandler(mockReq, mockRes);
+    return;
+  }
+
   if (
-    (req.method === "OPTIONS" && (urlPath === "/api/feedback" || urlPath === "/api/agent")) ||
-    (req.method === "POST" && urlPath === "/api/agent")
+    (req.method === "OPTIONS" &&
+      (urlPath === "/api/feedback" || urlPath === "/api/agent" || urlPath === "/api/chat")) ||
+    (req.method === "POST" && (urlPath === "/api/agent" || urlPath === "/api/chat"))
   ) {
     if (req.method === "OPTIONS") {
       res.writeHead(204, {
