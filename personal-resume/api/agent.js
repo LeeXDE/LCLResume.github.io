@@ -122,12 +122,25 @@ function getLlmConfig() {
     },
   ];
 
-  const customKey = (process.env.OPENAI_API_KEY || process.env.AI_API_KEY)?.trim();
-  if (customBase && customKey) {
+  const openaiKey = (process.env.OPENAI_API_KEY || process.env.AI_API_KEY)?.trim();
+  if (customBase && openaiKey) {
     return {
-      apiKey: customKey,
+      apiKey: openaiKey,
       base: customBase.replace(/\/$/, ""),
-      model: customModel || "gpt-4o-mini",
+      model: customModel || (customBase.includes("deepseek") ? "deepseek-chat" : "gpt-4o-mini"),
+    };
+  }
+
+  // 仅填 OPENAI_API_KEY 且 AI_PROVIDER=deepseek 时（兼容旧版 Vercel 变量名）
+  if (
+    openaiKey &&
+    !process.env.DEEPSEEK_API_KEY?.trim() &&
+    process.env.AI_PROVIDER?.trim().toLowerCase() === "deepseek"
+  ) {
+    return {
+      apiKey: openaiKey,
+      base: "https://api.deepseek.com",
+      model: customModel || "deepseek-chat",
     };
   }
 
@@ -276,11 +289,10 @@ export default async function handler(req, res) {
       json(res, 503, {
         success: false,
         message:
-          "AI 尚未配置。请在 Vercel 添加以下任一密钥（国内可打开，新用户有免费额度）：\n" +
-          "① DeepSeek（推荐）platform.deepseek.com → DEEPSEEK_API_KEY\n" +
-          "② 硅基流动 cloud.siliconflow.cn → SILICONFLOW_API_KEY\n" +
-          "③ 智谱 open.bigmodel.cn → ZHIPU_API_KEY（glm-4-flash 免费）\n" +
-          "保存后 Redeploy。",
+          "AI 尚未配置。Vercel → Environment Variables 添加：\n" +
+          "DEEPSEEK_API_KEY = DeepSeek 完整密钥（platform.deepseek.com）\n" +
+          "或 OPENAI_API_KEY + OPENAI_BASE_URL=https://api.deepseek.com + AI_MODEL=deepseek-chat\n" +
+          "保存后 Redeploy。勿在聊天中发送密钥。",
       });
       return;
     }
