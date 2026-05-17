@@ -46,3 +46,31 @@ HTTP 4xx/5xx，或 JSON 中 success/ok 为 false。
 ----
 运行 preview-server.mjs 时，已内置 POST /api/feedback（与示例脚本行为一致，仅 console.log）。
 此时将 index.html 中 feedback-endpoint 设为 /api/feedback（不要用 file:// 打开，需 http://127.0.0.1:端口/）。
+
+AI 助手 /api/agent
+========================
+
+前端：index.html meta name="agent-endpoint" content="/api/agent"，逻辑见 src/agent.js。
+无需登录；对话仅保存在浏览器 sessionStorage。
+
+环境变量（Vercel → Settings → Environment Variables，或本地 .env.local）：
+- OPENAI_API_KEY（必填）或 AI_API_KEY
+- OPENAI_BASE_URL（可选，OpenRouter 等）
+- AI_MODEL（可选，默认 gpt-4o-mini）
+- TAVILY_API_KEY（可选，启用联网搜索 https://tavily.com）
+
+请求
+----
+POST /api/agent
+Content-Type: application/json
+Body: { "messages": [ { "role": "user"|"assistant", "content": "..." } ] }
+
+成功
+----
+{ "success": true, "reply": "...", "searched": true|false }
+
+失败
+----
+503 未配置 API Key；400 无有效问题；500 服务异常。
+
+本地：node preview-server.mjs，访问 http://127.0.0.1:端口/ ，点击右下角 AI 按钮。

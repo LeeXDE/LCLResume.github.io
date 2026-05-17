@@ -1,9 +1,34 @@
 import { createServer } from "http";
-import { readFile } from "fs/promises";
+import { readFile, readFileSync, existsSync } from "fs";
+import { readFile as readFileAsync } from "fs/promises";
 import { join, extname } from "path";
 import { fileURLToPath } from "url";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
+
+function loadEnvFile(filePath) {
+  if (!existsSync(filePath)) return;
+  for (const line of readFileSync(filePath, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = value;
+  }
+}
+
+loadEnvFile(join(root, ".env.local"));
+loadEnvFile(join(root, ".env"));
+
+const readFile = readFileAsync;
 let portNum = Number(process.env.PORT) || 5173;
 
 const mime = {
@@ -22,6 +47,46 @@ const mime = {
 
 const server = createServer(async (req, res) => {
   const urlPath = (req.url || "/").split("?")[0];
+
+  if (
+    (req.method === "OPTIONS" && (urlPath === "/api/feedback" || urlPath === "/api/agent")) ||
+    (req.method === "POST" && urlPath === "/api/agent")
+  ) {
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Accept",
+        "Access-Control-Max-Age": "86400",
+      });
+      res.end();
+      return;
+    }
+
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const raw = Buffer.concat(chunks).toString("utf8");
+    const { default: agentHandler } = await import("./api/agent.js");
+    const mockReq = {
+      method: "POST",
+      body: raw ? JSON.parse(raw) : {},
+      on() {},
+      [Symbol.asyncIterator]: async function* () {},
+    };
+    const mockRes = {
+      statusCode: 200,
+      headers: {},
+      setHeader(k, v) {
+        this.headers[k] = v;
+      },
+      end(body) {
+        res.writeHead(this.statusCode, this.headers);
+        res.end(body);
+      },
+    };
+    await agentHandler(mockReq, mockRes);
+    return;
+  }
 
   if (req.method === "OPTIONS" && urlPath === "/api/feedback") {
     res.writeHead(204, {
