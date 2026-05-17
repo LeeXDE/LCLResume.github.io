@@ -53,11 +53,12 @@ AI 助手 /api/agent
 前端：index.html meta name="agent-endpoint" content="/api/agent"，逻辑见 src/agent.js。
 无需登录；对话仅保存在浏览器 sessionStorage。
 
-环境变量（Vercel → Settings → Environment Variables，或本地 .env.local）：
-- GROQ_API_KEY（推荐，免费）：https://console.groq.com 注册后创建 Key
-- 或 OPENAI_API_KEY + 可选 OPENAI_BASE_URL / AI_MODEL（OpenRouter 等）
-- TAVILY_API_KEY（可选，联网搜索 https://tavily.com 免费额度）
-默认模型（Groq）：llama-3.3-70b-versatile
+环境变量（任选其一，国内可用）：
+- DEEPSEEK_API_KEY — https://platform.deepseek.com（推荐）
+- SILICONFLOW_API_KEY — https://cloud.siliconflow.cn
+- ZHIPU_API_KEY — https://open.bigmodel.cn（glm-4-flash）
+- 或 OPENAI_API_KEY + OPENAI_BASE_URL + AI_MODEL
+- TAVILY_API_KEY（可选，联网搜索）
 
 请求
 ----

@@ -5,7 +5,7 @@ export const config = {
 };
 
 /** 部署版本标记（用于确认 Vercel 已更新） */
-const AGENT_BUILD = "2026-05-17-groq";
+const AGENT_BUILD = "2026-05-17-cn-free";
 
 const SYSTEM_PROMPT = `你是「李敬媚个人网站」的 AI 助手，面向访客（招聘方、业务伙伴等）。无需登录即可对话。
 
@@ -86,23 +86,59 @@ async function webSearch(query) {
   return { ok: true, summary: lines.join("\n") || "未找到相关结果" };
 }
 
-/** 默认使用 Groq 免费 OpenAI 兼容接口；亦支持 OPENAI_API_KEY + 自定义 BASE_URL */
+/**
+ * 国内可用的免费/赠额 OpenAI 兼容接口（按优先级取第一个已配置的 Key）
+ * 自定义 OPENAI_BASE_URL + OPENAI_API_KEY 可覆盖
+ */
 function getLlmConfig() {
-  const groqKey = process.env.GROQ_API_KEY?.trim();
-  const openaiKey = (process.env.OPENAI_API_KEY || process.env.AI_API_KEY)?.trim();
-  const apiKey = groqKey || openaiKey;
-  if (!apiKey) return null;
+  const customBase = process.env.OPENAI_BASE_URL?.trim();
+  const customModel = process.env.AI_MODEL?.trim();
 
-  const useGroq = Boolean(groqKey && apiKey === groqKey);
-  const base = (
-    process.env.OPENAI_BASE_URL?.trim() ||
-    (useGroq ? "https://api.groq.com/openai/v1" : "https://api.openai.com/v1")
-  ).replace(/\/$/, "");
-  const model =
-    process.env.AI_MODEL?.trim() ||
-    (useGroq ? "llama-3.3-70b-versatile" : "gpt-4o-mini");
+  const providers = [
+    {
+      key: process.env.DEEPSEEK_API_KEY?.trim(),
+      base: "https://api.deepseek.com",
+      model: "deepseek-chat",
+    },
+    {
+      key: process.env.SILICONFLOW_API_KEY?.trim(),
+      base: "https://api.siliconflow.cn/v1",
+      model: "Qwen/Qwen2.5-7B-Instruct",
+    },
+    {
+      key: process.env.ZHIPU_API_KEY?.trim(),
+      base: "https://open.bigmodel.cn/api/paas/v4",
+      model: "glm-4-flash",
+    },
+    {
+      key: process.env.GROQ_API_KEY?.trim(),
+      base: "https://api.groq.com/openai/v1",
+      model: "llama-3.3-70b-versatile",
+    },
+    {
+      key: (process.env.OPENAI_API_KEY || process.env.AI_API_KEY)?.trim(),
+      base: "https://api.openai.com/v1",
+      model: "gpt-4o-mini",
+    },
+  ];
 
-  return { apiKey, base, model, useGroq };
+  const customKey = (process.env.OPENAI_API_KEY || process.env.AI_API_KEY)?.trim();
+  if (customBase && customKey) {
+    return {
+      apiKey: customKey,
+      base: customBase.replace(/\/$/, ""),
+      model: customModel || "gpt-4o-mini",
+    };
+  }
+
+  const picked = providers.find((p) => p.key);
+  if (!picked) return null;
+
+  return {
+    apiKey: picked.key,
+    base: (customBase || picked.base).replace(/\/$/, ""),
+    model: customModel || picked.model,
+  };
 }
 
 async function chatCompletion(messages) {
@@ -240,7 +276,11 @@ export default async function handler(req, res) {
       json(res, 503, {
         success: false,
         message:
-          "AI 尚未配置。请在 Vercel 环境变量添加 GROQ_API_KEY（免费注册：https://console.groq.com ，登录后 Create API Key 即可）。",
+          "AI 尚未配置。请在 Vercel 添加以下任一密钥（国内可打开，新用户有免费额度）：\n" +
+          "① DeepSeek（推荐）platform.deepseek.com → DEEPSEEK_API_KEY\n" +
+          "② 硅基流动 cloud.siliconflow.cn → SILICONFLOW_API_KEY\n" +
+          "③ 智谱 open.bigmodel.cn → ZHIPU_API_KEY（glm-4-flash 免费）\n" +
+          "保存后 Redeploy。",
       });
       return;
     }
