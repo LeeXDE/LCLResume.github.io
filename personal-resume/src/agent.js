@@ -48,6 +48,23 @@ if (agentRoot) {
     if (statusEl) statusEl.textContent = text || "";
   }
 
+  function toPlainText(text) {
+    if (!text) return "";
+    return String(text)
+      .replace(/\r\n/g, "\n")
+      .replace(/^#{1,6}\s+/gm, "")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/__([^_]+)__/g, "$1")
+      .replace(/_([^_]+)_/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/^[\t ]*[-*+]\s+/gm, "· ")
+      .replace(/\*{2,}/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
   function renderMessages() {
     if (!messagesEl) return;
     messagesEl.innerHTML = "";
@@ -65,7 +82,8 @@ if (agentRoot) {
       row.className = `site-agent-row site-agent-row--${msg.role}`;
       const bubble = document.createElement("div");
       bubble.className = `site-agent-bubble site-agent-bubble--${msg.role}`;
-      bubble.textContent = msg.content;
+      bubble.textContent =
+        msg.role === "assistant" ? toPlainText(msg.content) : msg.content;
       row.appendChild(bubble);
       messagesEl.appendChild(row);
     }
@@ -179,7 +197,7 @@ if (agentRoot) {
           content: data.message || `请求失败（HTTP ${res.status}），请稍后再试。`,
         });
       } else {
-        let reply = data.reply || "";
+        let reply = toPlainText(data.reply || "");
         if (data.searched) reply += "\n\n— 本次回答参考了联网检索。";
         messages.push({ role: "assistant", content: reply });
       }
