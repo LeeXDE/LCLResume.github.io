@@ -114,9 +114,14 @@ if (agentRoot) {
       typingRow.remove();
 
       if (!res.ok || !data.success) {
+        let errMsg = data.message || "请求失败，请稍后再试。";
+        if (res.status === 404) {
+          errMsg =
+            "未找到 AI 接口。请使用 Vercel 地址访问（非 GitHub Pages），并确认已部署 api/agent。";
+        }
         messages.push({
           role: "assistant",
-          content: data.message || "请求失败，请稍后再试。",
+          content: errMsg,
         });
       } else {
         let reply = data.reply || "";

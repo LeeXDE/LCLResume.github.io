@@ -4,6 +4,9 @@ export const config = {
   maxDuration: 60,
 };
 
+/** 部署版本标记（用于确认 Vercel 已更新） */
+const AGENT_BUILD = "2026-05-17-groq";
+
 const SYSTEM_PROMPT = `你是「李敬媚个人网站」的 AI 助手，面向访客（招聘方、业务伙伴等）。无需登录即可对话。
 
 ## 你的能力
