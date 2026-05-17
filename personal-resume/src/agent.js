@@ -60,7 +60,8 @@ if (agentRoot) {
       .replace(/`([^`]+)`/g, "$1")
       .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       .replace(/^[\t ]*[-*+]\s+/gm, "· ")
-      .replace(/\*{2,}/g, "")
+      .replace(/[*#_`~]+/g, "")
+      .replace(/([。！？.!?…\u4e00-\u9fff])\s*[a-zA-Z]\s*$/u, "$1")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
   }
