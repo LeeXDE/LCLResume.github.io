@@ -224,4 +224,20 @@ if (agentRoot) {
     e.preventDefault();
     openPanel();
   });
+
+  document.getElementById("agent-open-web")?.addEventListener("click", async () => {
+    const q = (input?.value || "").trim();
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const question = q || lastUser?.content || "请根据李敬媚的个人简历网站，介绍她的背景与适合的产品/项目方向。";
+    const prompt =
+      "你是招聘场景助手。访客正在浏览「李敬媚」个人网站。请用简体中文回答：\n\n" + question;
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setStatus("已复制问题，正在打开 DeepSeek 网页…");
+    } catch {
+      setStatus("请手动复制输入框中的问题");
+    }
+    window.open("https://chat.deepseek.com/", "_blank", "noopener,noreferrer");
+    setTimeout(() => setStatus(""), 3000);
+  });
 }

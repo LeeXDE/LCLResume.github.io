@@ -106,12 +106,6 @@ function getLlmConfigs() {
 
   const candidates = [
     {
-      name: "deepseek",
-      key: process.env.DEEPSEEK_API_KEY?.trim(),
-      base: "https://api.deepseek.com/v1",
-      model: "deepseek-chat",
-    },
-    {
       name: "siliconflow",
       key: process.env.SILICONFLOW_API_KEY?.trim(),
       base: "https://api.siliconflow.cn/v1",
@@ -122,6 +116,12 @@ function getLlmConfigs() {
       key: process.env.ZHIPU_API_KEY?.trim(),
       base: "https://open.bigmodel.cn/api/paas/v4",
       model: "glm-4-flash",
+    },
+    {
+      name: "deepseek",
+      key: process.env.DEEPSEEK_API_KEY?.trim(),
+      base: "https://api.deepseek.com/v1",
+      model: "deepseek-chat",
     },
     {
       name: "groq",
@@ -175,10 +175,10 @@ function getLlmConfigs() {
 function llmUserMessage(status, detail) {
   const d = detail.toLowerCase();
   if (status === 401 || d.includes("invalid") || d.includes("authentication")) {
-    return "API 密钥无效或已过期，请在 Vercel 检查 DEEPSEEK_API_KEY 是否为完整 sk- 密钥。";
+    return "API 密钥无效。请删除错误的 DEEPSEEK_API_KEY，改用硅基流动：Vercel 添加 SILICONFLOW_API_KEY（cloud.siliconflow.cn），Redeploy。或使用下方「网页版」链接。";
   }
   if (status === 402 || d.includes("insufficient") || d.includes("balance")) {
-    return "账户余额不足。DeepSeek 新用户有赠额，请登录 platform.deepseek.com 查看余额；或改用硅基流动免费 Key（SILICONFLOW_API_KEY）。";
+    return "该 API 账户余额不足。请改用硅基流动免费额度（SILICONFLOW_API_KEY），或使用下方 DeepSeek 网页版。";
   }
   if (status === 429 || d.includes("rate")) {
     return "请求过于频繁，请稍后再试。";
@@ -336,10 +336,8 @@ export default async function handler(req, res) {
       json(res, 503, {
         success: false,
         message:
-          "AI 尚未配置。Vercel → Environment Variables 添加：\n" +
-          "DEEPSEEK_API_KEY = DeepSeek 完整密钥（platform.deepseek.com）\n" +
-          "或 OPENAI_API_KEY + OPENAI_BASE_URL=https://api.deepseek.com + AI_MODEL=deepseek-chat\n" +
-          "保存后 Redeploy。勿在聊天中发送密钥。",
+          "AI 尚未配置。推荐免费：Vercel 添加 SILICONFLOW_API_KEY（cloud.siliconflow.cn 注册领额度）。\n" +
+          "或 DEEPSEEK_API_KEY（需充值，按量很便宜）。保存后 Redeploy。勿在聊天中发送密钥。",
       });
       return;
     }
