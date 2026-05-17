@@ -87,82 +87,108 @@ async function webSearch(query) {
 }
 
 /**
- * 国内可用的免费/赠额 OpenAI 兼容接口（按优先级取第一个已配置的 Key）
- * 自定义 OPENAI_BASE_URL + OPENAI_API_KEY 可覆盖
+ * 国内免费/赠额接口（OpenAI 兼容）。可配置多个 Key，失败时自动换下一个。
  */
-function getLlmConfig() {
+function getLlmConfigs() {
   const customBase = process.env.OPENAI_BASE_URL?.trim();
   const customModel = process.env.AI_MODEL?.trim();
+  const openaiKey = (process.env.OPENAI_API_KEY || process.env.AI_API_KEY)?.trim();
+  const list = [];
 
-  const providers = [
+  if (customBase && openaiKey) {
+    list.push({
+      name: "custom",
+      apiKey: openaiKey,
+      base: customBase.replace(/\/$/, ""),
+      model: customModel || (customBase.includes("deepseek") ? "deepseek-chat" : "gpt-4o-mini"),
+    });
+  }
+
+  const candidates = [
     {
+      name: "deepseek",
       key: process.env.DEEPSEEK_API_KEY?.trim(),
-      base: "https://api.deepseek.com",
+      base: "https://api.deepseek.com/v1",
       model: "deepseek-chat",
     },
     {
+      name: "siliconflow",
       key: process.env.SILICONFLOW_API_KEY?.trim(),
       base: "https://api.siliconflow.cn/v1",
       model: "Qwen/Qwen2.5-7B-Instruct",
     },
     {
+      name: "zhipu",
       key: process.env.ZHIPU_API_KEY?.trim(),
       base: "https://open.bigmodel.cn/api/paas/v4",
       model: "glm-4-flash",
     },
     {
+      name: "groq",
       key: process.env.GROQ_API_KEY?.trim(),
       base: "https://api.groq.com/openai/v1",
       model: "llama-3.3-70b-versatile",
     },
-    {
-      key: (process.env.OPENAI_API_KEY || process.env.AI_API_KEY)?.trim(),
-      base: "https://api.openai.com/v1",
-      model: "gpt-4o-mini",
-    },
   ];
 
-  const openaiKey = (process.env.OPENAI_API_KEY || process.env.AI_API_KEY)?.trim();
-  if (customBase && openaiKey) {
-    return {
-      apiKey: openaiKey,
-      base: customBase.replace(/\/$/, ""),
-      model: customModel || (customBase.includes("deepseek") ? "deepseek-chat" : "gpt-4o-mini"),
-    };
-  }
-
-  // 仅填 OPENAI_API_KEY 且 AI_PROVIDER=deepseek 时（兼容旧版 Vercel 变量名）
   if (
     openaiKey &&
     !process.env.DEEPSEEK_API_KEY?.trim() &&
     process.env.AI_PROVIDER?.trim().toLowerCase() === "deepseek"
   ) {
-    return {
+    list.push({
+      name: "deepseek",
       apiKey: openaiKey,
-      base: "https://api.deepseek.com",
+      base: "https://api.deepseek.com/v1",
       model: customModel || "deepseek-chat",
-    };
+    });
   }
 
-  const picked = providers.find((p) => p.key);
-  if (!picked) return null;
+  for (const p of candidates) {
+    if (!p.key) continue;
+    list.push({
+      name: p.name,
+      apiKey: p.key,
+      base: p.base,
+      model: customModel && p.name === "deepseek" ? customModel : p.model,
+    });
+  }
 
-  return {
-    apiKey: picked.key,
-    base: (customBase || picked.base).replace(/\/$/, ""),
-    model: customModel || picked.model,
-  };
+  if (openaiKey && !list.some((x) => x.apiKey === openaiKey)) {
+    list.push({
+      name: "openai",
+      apiKey: openaiKey,
+      base: "https://api.openai.com/v1",
+      model: customModel || "gpt-4o-mini",
+    });
+  }
+
+  const seen = new Set();
+  return list.filter((c) => {
+    const id = `${c.base}|${c.apiKey.slice(0, 8)}`;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }
 
-async function chatCompletion(messages) {
-  const llm = getLlmConfig();
-  if (!llm) {
-    throw new Error("MISSING_API_KEY");
+function llmUserMessage(status, detail) {
+  const d = detail.toLowerCase();
+  if (status === 401 || d.includes("invalid") || d.includes("authentication")) {
+    return "API 密钥无效或已过期，请在 Vercel 检查 DEEPSEEK_API_KEY 是否为完整 sk- 密钥。";
   }
+  if (status === 402 || d.includes("insufficient") || d.includes("balance")) {
+    return "账户余额不足。DeepSeek 新用户有赠额，请登录 platform.deepseek.com 查看余额；或改用硅基流动免费 Key（SILICONFLOW_API_KEY）。";
+  }
+  if (status === 429 || d.includes("rate")) {
+    return "请求过于频繁，请稍后再试。";
+  }
+  return "模型服务暂时不可用，请稍后再试。";
+}
 
+async function callOneProvider(llm, messages) {
   const { apiKey, base, model } = llm;
   const hasSearch = Boolean(process.env.TAVILY_API_KEY?.trim());
-
   let current = [...messages];
   const maxRounds = 4;
 
@@ -179,13 +205,16 @@ async function chatCompletion(messages) {
         tools: hasSearch ? [WEB_SEARCH_TOOL] : undefined,
         tool_choice: hasSearch ? "auto" : undefined,
         temperature: 0.6,
-        max_tokens: 1200,
+        max_tokens: 800,
       }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`LLM_${res.status}:${errText.slice(0, 200)}`);
+      const err = new Error(`LLM_${res.status}:${errText.slice(0, 300)}`);
+      err.status = res.status;
+      err.detail = errText;
+      throw err;
     }
 
     const data = await res.json();
@@ -223,9 +252,27 @@ async function chatCompletion(messages) {
 
   return {
     reply: "处理超时，请简化问题后重试。",
-    model: process.env.AI_MODEL || "gpt-4o-mini",
+    model,
     searched: false,
   };
+}
+
+async function chatCompletion(messages) {
+  const configs = getLlmConfigs();
+  if (!configs.length) {
+    throw new Error("MISSING_API_KEY");
+  }
+
+  let lastErr = null;
+  for (const llm of configs) {
+    try {
+      return await callOneProvider(llm, messages);
+    } catch (err) {
+      lastErr = err;
+      console.error(`[agent] ${llm.name} failed:`, err.message);
+    }
+  }
+  throw lastErr || new Error("LLM_ALL_FAILED");
 }
 
 export default async function handler(req, res) {
@@ -297,9 +344,10 @@ export default async function handler(req, res) {
       return;
     }
     if (code.startsWith("LLM_")) {
+      const status = Number(code.match(/^LLM_(\d+)/)?.[1] || 0);
       json(res, 502, {
         success: false,
-        message: "模型服务暂时繁忙，请稍后再试。",
+        message: llmUserMessage(status, err.detail || code),
       });
       return;
     }
