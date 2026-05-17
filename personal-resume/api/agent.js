@@ -83,15 +83,33 @@ async function webSearch(query) {
   return { ok: true, summary: lines.join("\n") || "未找到相关结果" };
 }
 
+/** 默认使用 Groq 免费 OpenAI 兼容接口；亦支持 OPENAI_API_KEY + 自定义 BASE_URL */
+function getLlmConfig() {
+  const groqKey = process.env.GROQ_API_KEY?.trim();
+  const openaiKey = (process.env.OPENAI_API_KEY || process.env.AI_API_KEY)?.trim();
+  const apiKey = groqKey || openaiKey;
+  if (!apiKey) return null;
+
+  const useGroq = Boolean(groqKey && apiKey === groqKey);
+  const base = (
+    process.env.OPENAI_BASE_URL?.trim() ||
+    (useGroq ? "https://api.groq.com/openai/v1" : "https://api.openai.com/v1")
+  ).replace(/\/$/, "");
+  const model =
+    process.env.AI_MODEL?.trim() ||
+    (useGroq ? "llama-3.3-70b-versatile" : "gpt-4o-mini");
+
+  return { apiKey, base, model, useGroq };
+}
+
 async function chatCompletion(messages) {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
-  if (!apiKey) {
+  const llm = getLlmConfig();
+  if (!llm) {
     throw new Error("MISSING_API_KEY");
   }
 
-  const base = (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
-  const model = process.env.AI_MODEL || "gpt-4o-mini";
-  const hasSearch = Boolean(process.env.TAVILY_API_KEY);
+  const { apiKey, base, model } = llm;
+  const hasSearch = Boolean(process.env.TAVILY_API_KEY?.trim());
 
   let current = [...messages];
   const maxRounds = 4;
@@ -218,7 +236,15 @@ export default async function handler(req, res) {
     if (code === "MISSING_API_KEY") {
       json(res, 503, {
         success: false,
-        message: "AI 服务尚未配置，请在 Vercel 环境变量中设置 OPENAI_API_KEY。",
+        message:
+          "AI 尚未配置。请在 Vercel 环境变量添加 GROQ_API_KEY（免费注册：https://console.groq.com ，登录后 Create API Key 即可）。",
+      });
+      return;
+    }
+    if (code.startsWith("LLM_")) {
+      json(res, 502, {
+        success: false,
+        message: "模型服务暂时繁忙，请稍后再试。",
       });
       return;
     }
