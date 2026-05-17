@@ -1,0 +1,77 @@
+访客反馈接口（自有服务器）
+============================
+
+前端行为（见 src/main.js）
+- index.html 中 <meta name="feedback-endpoint" content="你的接口地址" />
+- 若 content 为空：仍使用 FormSubmit（开发/过渡期）。
+- 若指向自有接口（非 formsubmit.co）：使用 fetch POST JSON。
+
+请求
+----
+Method: POST
+URL:    与 meta 中完全一致（推荐同源，例如 https://你的域名/api/feedback）
+Header: Content-Type: application/json
+Header: Accept: application/json
+Body 示例:
+{
+  "interview_chance": "用户对「是否有面试机会」的填空",
+  "visitor_company": "公司或团队名称"
+}
+
+成功响应（任选一种约定即可）
+----
+HTTP 2xx，且满足其一即可被前端视为成功：
+- JSON: { "success": true } 或 { "success": "true" }
+- JSON: { "ok": true } 或 { "ok": "true" }
+- 无 JSON 或 JSON 中不含 success/ok 字段：仅 HTTP 2xx 即视为成功
+
+失败响应
+----
+HTTP 4xx/5xx，或 JSON 中 success/ok 为 false。
+可选返回说明字段：message 或 error（字符串），将显示在页面上。
+
+跨域
+----
+若接口与简历页不同源，请在服务端设置 CORS：
+- Access-Control-Allow-Origin: 你的简历站点来源（或按需配置）
+- Access-Control-Allow-Methods: POST, OPTIONS
+- Access-Control-Allow-Headers: Content-Type, Accept
+并对 OPTIONS 预检返回 204。
+
+安全
+----
+建议：限流、人机验证、仅允许你的站点来源；服务端再发邮件到 1053225374@qq.com 或写入数据库。
+
+本地联调
+----
+运行 preview-server.mjs 时，已内置 POST /api/feedback（与示例脚本行为一致，仅 console.log）。
+此时将 index.html 中 feedback-endpoint 设为 /api/feedback（不要用 file:// 打开，需 http://127.0.0.1:端口/）。
+
+AI 助手 /api/agent
+========================
+
+前端：index.html meta name="agent-endpoint" content="/api/agent"，逻辑见 src/agent.js。
+无需登录；对话仅保存在浏览器 sessionStorage。
+
+环境变量（任选其一，国内可用）：
+- DEEPSEEK_API_KEY — https://platform.deepseek.com（推荐）
+- SILICONFLOW_API_KEY — https://cloud.siliconflow.cn
+- ZHIPU_API_KEY — https://open.bigmodel.cn（glm-4-flash）
+- 或 OPENAI_API_KEY + OPENAI_BASE_URL + AI_MODEL
+- TAVILY_API_KEY（可选，联网搜索）
+
+请求
+----
+POST /api/agent
+Content-Type: application/json
+Body: { "messages": [ { "role": "user"|"assistant", "content": "..." } ] }
+
+成功
+----
+{ "success": true, "reply": "...", "searched": true|false }
+
+失败
+----
+503 未配置 API Key；400 无有效问题；500 服务异常。
+
+本地：node preview-server.mjs，访问 http://127.0.0.1:端口/ ，点击右下角 AI 按钮。

@@ -1,0 +1,11 @@
+Vercel 部署说明
+================
+
+GitHub 仓库里网站代码在 personal-resume/ 子目录（给 GitHub Pages 用）。
+仓库根目录也有一份相同文件（给 Vercel 用，无需再设 Root Directory）。
+
+若仍 404，请在 Vercel：
+Settings → Build and Deployment → Root Directory
+留空（不要填 personal-resume），然后 Redeploy。
+
+或改为只填：personal-resume（二选一，不要两个都配错）
