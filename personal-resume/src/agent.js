@@ -1,8 +1,16 @@
 const agentRoot = document.getElementById("site-agent");
 
+/** Vercel 上的 AI 接口（GitHub Pages 无服务端，必须用此地址） */
+const VERCEL_AGENT_API = "https://lcl-resume-github-io.vercel.app/api/agent";
+
 if (agentRoot) {
-  const endpoint =
-    document.querySelector('meta[name="agent-endpoint"]')?.content?.trim() || "/api/agent";
+  function resolveAgentEndpoints() {
+    const meta = document.querySelector('meta[name="agent-endpoint"]')?.content?.trim();
+    const list = [];
+    if (meta) list.push(meta);
+    if (!list.includes(VERCEL_AGENT_API)) list.push(VERCEL_AGENT_API);
+    return list;
+  }
 
   const panel = agentRoot.querySelector(".site-agent-panel");
   const toggle = agentRoot.querySelector(".site-agent-toggle");
@@ -105,23 +113,33 @@ if (agentRoot) {
     if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
 
     try {
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ messages }),
-      });
-      const data = await res.json().catch(() => ({}));
+      const endpoints = resolveAgentEndpoints();
+      let res = null;
+      let data = {};
+
+      for (const url of endpoints) {
+        res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ messages }),
+        });
+        if (res.status === 404 || res.status === 405) continue;
+        data = await res.json().catch(() => ({}));
+        break;
+      }
+
       typingRow.remove();
 
-      if (!res.ok || !data.success) {
-        let errMsg = data.message || "请求失败，请稍后再试。";
-        if (res.status === 404) {
-          errMsg =
-            "未找到 AI 接口。请使用 Vercel 地址访问（非 GitHub Pages），并确认已部署 api/agent。";
-        }
+      if (!res || res.status === 404 || res.status === 405) {
         messages.push({
           role: "assistant",
-          content: errMsg,
+          content:
+            "无法连接 AI 服务。请确认 Vercel 已部署 api/agent，且已配置 DEEPSEEK_API_KEY 并 Redeploy。",
+        });
+      } else if (!res.ok || !data.success) {
+        messages.push({
+          role: "assistant",
+          content: data.message || "请求失败，请稍后再试。",
         });
       } else {
         let reply = data.reply || "";
