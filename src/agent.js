@@ -2,28 +2,32 @@ const agentRoot = document.getElementById("site-agent");
 
 /** 备用：GitHub Pages 等静态站调用 Vercel 上的接口 */
 const VERCEL_AGENT_API = "https://lcl-resume-github-io.vercel.app/api/chat";
+const VERCEL_AGENT_LEGACY = "https://lcl-resume-github-io.vercel.app/api/agent";
+/** 生产自定义域名（手机端访问 GitHub Pages 时优先走此域，避免 vercel.app 被拦） */
+const PRODUCTION_APIS = [
+  "https://www.leeresume.me/api/chat",
+  "https://leeresume.me/api/chat",
+];
 
 if (agentRoot) {
   function resolveAgentEndpoints() {
     const host = window.location.hostname;
+    const origin = window.location.origin;
     const onGhPages = host.endsWith("github.io");
-    const onVercel = host.endsWith("vercel.app");
-    const onLocal = host === "localhost" || host === "127.0.0.1";
     const list = [];
 
-    if (onVercel || onLocal) {
-      list.push(`${window.location.origin}/api/chat`);
-      list.push(`${window.location.origin}/api/agent`);
+    // 非 GitHub Pages：优先同源（含 vercel.app、自定义域名 leeresume.me 等）
+    if (!onGhPages) {
+      list.push(`${origin}/api/chat`);
+      list.push(`${origin}/api/agent`);
+    } else {
+      list.push(...PRODUCTION_APIS);
     }
-    if (onGhPages) {
-      list.push(VERCEL_AGENT_API);
-      list.push("https://lcl-resume-github-io.vercel.app/api/agent");
-    }
+
+    list.push(VERCEL_AGENT_API, VERCEL_AGENT_LEGACY);
 
     const meta = document.querySelector('meta[name="agent-endpoint"]')?.content?.trim();
-    if (meta) list.push(meta);
-
-    if (!list.includes(VERCEL_AGENT_API)) list.push(VERCEL_AGENT_API);
+    if (meta && /^https?:\/\//i.test(meta)) list.push(meta);
 
     return [...new Set(list)];
   }
@@ -135,10 +139,9 @@ if (agentRoot) {
       return "请求超时，请稍后再试。";
     }
     return (
-      "无法连接 AI 服务（网络被拦截或接口未部署）。\n" +
-      "1. 在 Vercel 打开：https://lcl-resume-github-io.vercel.app/api/health 应显示 ok\n" +
-      "2. 配置 DEEPSEEK_API_KEY 后 Redeploy\n" +
-      "3. 国内访问 GitHub Pages 时，vercel.app 可能被墙，请改用 Vercel 域名或 VPN"
+      "暂时无法连接 AI（多为手机网络或跨域限制）。\n" +
+      "请用浏览器打开：https://lcl-resume-github-io.vercel.app\n" +
+      "或点击下方「复制问题 → DeepSeek 网页」咨询。"
     );
   }
 
@@ -171,26 +174,39 @@ if (agentRoot) {
       const endpoints = resolveAgentEndpoints();
       let res = null;
       let data = {};
+      let had404 = false;
+      let hadNetworkFail = false;
 
       for (const url of endpoints) {
         try {
-          res = await postAgent(url, payload);
+          const attempt = await postAgent(url, payload);
+          if (attempt.status === 404 || attempt.status === 405) {
+            had404 = true;
+            continue;
+          }
+          res = attempt;
+          data = await res.json().catch(() => ({}));
+          break;
         } catch (err) {
+          hadNetworkFail = true;
           lastErr = err;
-          continue;
         }
-        if (res.status === 404 || res.status === 405) continue;
-        data = await res.json().catch(() => ({}));
-        break;
       }
 
       typingRow.remove();
 
-      if (!res || res.status === 404 || res.status === 405) {
+      if (!res) {
+        messages.push({
+          role: "assistant",
+          content: hadNetworkFail
+            ? networkErrorMessage(lastErr)
+            : "AI 接口未响应。请稍后重试，或使用下方 DeepSeek 网页咨询。",
+        });
+      } else if (res.status === 404 || res.status === 405) {
         messages.push({
           role: "assistant",
           content:
-            "AI 接口未部署。请在 Vercel 确认 Root Directory=personal-resume，并访问 /api/health 检测。",
+            "AI 接口未部署。请访问 https://lcl-resume-github-io.vercel.app/api/health 检测，或使用下方 DeepSeek 网页咨询。",
         });
       } else if (!res.ok || !data.success) {
         messages.push({
