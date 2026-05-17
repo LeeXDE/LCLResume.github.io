@@ -226,11 +226,6 @@ if (agentRoot) {
 
   renderMessages();
 
-  document.getElementById("nav-agent-link")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    openPanel();
-  });
-
   document.getElementById("agent-open-web")?.addEventListener("click", async () => {
     const q = (input?.value || "").trim();
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
